@@ -1,0 +1,12 @@
+[
+  "alerts",
+  "axum",
+  "eal",
+  "embeddings",
+  "json-merge",
+  "opto-sync",
+  "pgvector",
+  "rust",
+  "semantic-search",
+  "sync"
+]
