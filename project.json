@@ -1,0 +1,16 @@
+{
+  "bootstrap_date": "20260804",
+  "kind": "sync",
+  "organization": "embedded-alerts",
+  "repository": "eal-sync",
+  "required_paths": [
+    ".github/workflows/ci.yml",
+    ".gitignore",
+    "Cargo.toml",
+    "scripts/verify_repo.py",
+    "src/lib.rs"
+  ],
+  "schema_version": 1,
+  "tracking_issue": "DEN-1949",
+  "visibility": "public"
+}
