@@ -7,6 +7,10 @@ description = "opto-sync/syncer.rs JSON reconciliation gateway for Embedded Aler
 repository = "https://github.com/embedded-alerts/eal-sync"
 publish = false
 
+[package.metadata.opto-sync]
+upstream = "https://github.com/opto-sync"
+strategy = "offline-first"
+
 [dependencies]
 axum = { version = "0.8", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
