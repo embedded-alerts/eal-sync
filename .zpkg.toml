@@ -1,0 +1,22 @@
+[package]
+org = "embedded-alerts"
+name = "eal-sync"
+version = "0.1.0"
+description = "Offline-first synchronization gateway for Embedded Alerts"
+license = "MIT"
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/embedded-alerts/eal-sync"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"embedded-alerts/eal-interfaces" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", "node_modules/**", "target/**", "dist/**", "*.log", ".vendor/.zed/**"]
