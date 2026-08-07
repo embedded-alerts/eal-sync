@@ -17,7 +17,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 syncer-rs = { git = "https://github.com/opto-sync/syncer.rs", rev = "132a97c77867128656070be85d3046b0cc065cbf" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
-tower-http = { version = "0.6", features = ["trace"] }
+tower-http = { version = "0.7", features = ["trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
