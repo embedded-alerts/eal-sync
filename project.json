@@ -8,9 +8,18 @@
     ".gitignore",
     "Cargo.toml",
     "scripts/verify_repo.py",
-    "src/lib.rs"
+    "src/bin/crawl_once.rs",
+    "src/ingestion/mod.rs",
+    "src/ingestion/network.rs",
+    "src/lib.rs",
+    "src/ingestion/network/fetcher.rs",
+    "src/ingestion/network/policy.rs",
+    "src/ingestion/network/response.rs",
+    "src/ingestion/network/safety.rs",
+    "src/ingestion/revision.rs",
+    "src/ingestion/content.rs"
   ],
-  "schema_version": 1,
-  "tracking_issue": "DEN-1949",
+  "schema_version": 2,
+  "tracking_issue": "DEN-3461",
   "visibility": "public"
 }
