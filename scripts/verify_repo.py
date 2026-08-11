@@ -15,6 +15,7 @@ def main() -> int:
         "AGENTS.md",
         "project.json",
         ".zpkg.toml",
+        "rust-toolchain.toml",
         "docs/architecture.md",
         *metadata.get("required_paths", []),
     ]
@@ -40,12 +41,17 @@ def main() -> int:
     manifest = (ROOT / "Cargo.toml").read_text(encoding="utf-8")
     for marker in (
         'edition = "2024"',
-        'rust-version = "1.85"',
+        'rust-version = "1.88"',
         'eal-semantic = { git = "https://github.com/embedded-alerts/eal-libs"',
         'reqwest = { version = "0.12"',
     ):
         if marker not in manifest:
             raise SystemExit(f"Cargo manifest is missing {marker!r}")
+
+    toolchain = (ROOT / "rust-toolchain.toml").read_text(encoding="utf-8")
+    for marker in ('channel = "1.88.0"', 'components = ["rustfmt", "clippy"]'):
+        if marker not in toolchain:
+            raise SystemExit(f"Rust toolchain is missing {marker!r}")
 
     ingestion = "\n".join(
         (ROOT / path).read_text(encoding="utf-8")
