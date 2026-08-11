@@ -4,7 +4,8 @@
 //! It is not mounted as an unauthenticated URL-fetch endpoint.
 
 use eal_sync::ingestion::{
-    ConditionalState, FetchOutcome, FetchPolicy, FetchRequest, FetchScope, HttpFetcher,
+    ConditionalState, EmbeddingInputKind, FetchOutcome, FetchPolicy, FetchRequest, FetchScope,
+    HttpFetcher,
 };
 use serde::Serialize;
 use std::{env, error::Error};
@@ -22,6 +23,17 @@ struct CrawlSummary {
     content_bytes: Option<usize>,
     content_sha256: Option<String>,
     content_preview: Option<String>,
+    semantic: Option<SemanticSummary>,
+}
+
+#[derive(Debug, Serialize)]
+struct SemanticSummary {
+    title: Option<String>,
+    keywords: Vec<String>,
+    entities: Vec<String>,
+    embedding_input_count: usize,
+    embedding_kinds: Vec<&'static str>,
+    embedding_preview: String,
 }
 
 #[tokio::main]
@@ -60,24 +72,53 @@ async fn main() -> Result<(), Box<dyn Error>> {
             content_bytes: None,
             content_sha256: None,
             content_preview: None,
+            semantic: None,
         },
-        FetchOutcome::Changed { document } => CrawlSummary {
-            outcome: "changed",
-            requested_url: document.metadata.requested_url,
-            canonical_url: document.metadata.canonical_url,
-            final_url: document.metadata.final_url,
-            status: document.metadata.status,
-            etag: document.metadata.etag,
-            last_modified: document.metadata.last_modified,
-            content_type: Some(document.content_type),
-            content_bytes: Some(document.content_bytes),
-            content_sha256: Some(document.content_sha256),
-            content_preview: Some(preview(&document.content_text, 500)),
-        },
+        FetchOutcome::Changed { document } => {
+            let semantic = SemanticSummary {
+                title: document.title.clone(),
+                keywords: document.keywords.clone(),
+                entities: document.entities.clone(),
+                embedding_input_count: document.embedding_inputs.len(),
+                embedding_kinds: document
+                    .embedding_inputs
+                    .iter()
+                    .map(|input| embedding_kind_name(input.kind))
+                    .collect(),
+                embedding_preview: preview(&document.embedding_text, 1_000),
+            };
+            CrawlSummary {
+                outcome: "changed",
+                requested_url: document.metadata.requested_url,
+                canonical_url: document.metadata.canonical_url,
+                final_url: document.metadata.final_url,
+                status: document.metadata.status,
+                etag: document.metadata.etag,
+                last_modified: document.metadata.last_modified,
+                content_type: Some(document.content_type),
+                content_bytes: Some(document.content_bytes),
+                content_sha256: Some(document.content_sha256),
+                content_preview: Some(preview(&document.content_text, 500)),
+                semantic: Some(semantic),
+            }
+        }
     };
 
     println!("{}", serde_json::to_string_pretty(&summary)?);
     Ok(())
+}
+
+fn embedding_kind_name(kind: EmbeddingInputKind) -> &'static str {
+    match kind {
+        EmbeddingInputKind::Title => "title",
+        EmbeddingInputKind::Heading => "heading",
+        EmbeddingInputKind::Summary => "summary",
+        EmbeddingInputKind::Sentence => "sentence",
+        EmbeddingInputKind::Entity => "entity",
+        EmbeddingInputKind::Keyword => "keyword",
+        EmbeddingInputKind::UrlSignal => "url_signal",
+        EmbeddingInputKind::Document => "document",
+    }
 }
 
 fn required_env(name: &str) -> Result<String, Box<dyn Error>> {
@@ -118,5 +159,11 @@ mod tests {
     #[test]
     fn preview_is_unicode_safe() {
         assert_eq!(preview("alert 🔔 page", 7), "alert 🔔…");
+    }
+
+    #[test]
+    fn embedding_kind_names_match_wire_values() {
+        assert_eq!(embedding_kind_name(EmbeddingInputKind::UrlSignal), "url_signal");
+        assert_eq!(embedding_kind_name(EmbeddingInputKind::Sentence), "sentence");
     }
 }
