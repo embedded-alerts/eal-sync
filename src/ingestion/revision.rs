@@ -55,9 +55,7 @@ fn validate_embedding_inputs(inputs: &[EmbeddingInput]) -> Result<(), IngestionE
     if inputs.is_empty() || inputs.len() > MAX_EMBEDDING_INPUTS {
         return Err(IngestionError::new(
             "invalid_embedding_inputs",
-            format!(
-                "embedding work must contain 1 to {MAX_EMBEDDING_INPUTS} structured inputs"
-            ),
+            format!("embedding work must contain 1 to {MAX_EMBEDDING_INPUTS} structured inputs"),
         ));
     }
     for (expected_ordinal, input) in inputs.iter().enumerate() {
@@ -206,11 +204,13 @@ mod tests {
     fn structured_inputs_require_contiguous_ordinals() {
         let mut invalid = input();
         invalid.ordinal = 3;
-        assert!(decide_revision_with_inputs(
-            None,
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            &[invalid],
-        )
-        .is_err());
+        assert!(
+            decide_revision_with_inputs(
+                None,
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                &[invalid],
+            )
+            .is_err()
+        );
     }
 }
