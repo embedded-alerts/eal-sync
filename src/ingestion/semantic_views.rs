@@ -6,6 +6,132 @@ use url::Url;
 const MAX_INPUTS: usize = 96;
 const MAX_INPUT_CHARS: usize = 700;
 const MAX_EMBEDDING_TEXT_CHARS: usize = 24_000;
+const STOPWORDS: &[&str] = &[
+    "a",
+    "about",
+    "after",
+    "again",
+    "all",
+    "also",
+    "am",
+    "an",
+    "and",
+    "any",
+    "are",
+    "as",
+    "at",
+    "be",
+    "because",
+    "been",
+    "before",
+    "being",
+    "between",
+    "both",
+    "but",
+    "by",
+    "can",
+    "could",
+    "did",
+    "do",
+    "does",
+    "doing",
+    "down",
+    "during",
+    "each",
+    "few",
+    "for",
+    "from",
+    "further",
+    "had",
+    "has",
+    "have",
+    "having",
+    "he",
+    "her",
+    "here",
+    "hers",
+    "herself",
+    "him",
+    "himself",
+    "his",
+    "how",
+    "i",
+    "if",
+    "in",
+    "into",
+    "is",
+    "it",
+    "its",
+    "itself",
+    "just",
+    "me",
+    "more",
+    "most",
+    "my",
+    "myself",
+    "no",
+    "nor",
+    "not",
+    "now",
+    "of",
+    "off",
+    "on",
+    "once",
+    "only",
+    "or",
+    "other",
+    "our",
+    "ours",
+    "ourselves",
+    "out",
+    "over",
+    "own",
+    "same",
+    "she",
+    "should",
+    "so",
+    "some",
+    "such",
+    "than",
+    "that",
+    "the",
+    "their",
+    "theirs",
+    "them",
+    "themselves",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "those",
+    "through",
+    "to",
+    "too",
+    "under",
+    "until",
+    "up",
+    "very",
+    "was",
+    "we",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "who",
+    "whom",
+    "why",
+    "will",
+    "with",
+    "would",
+    "you",
+    "your",
+    "yours",
+    "yourself",
+    "yourselves",
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -33,9 +159,7 @@ impl EmbeddingInput {
         if self.text.trim().is_empty() || self.text.chars().count() > MAX_INPUT_CHARS {
             return Err(IngestionError::new(
                 "invalid_embedding_input",
-                format!(
-                    "embedding input text must contain 1 to {MAX_INPUT_CHARS} characters"
-                ),
+                format!("embedding input text must contain 1 to {MAX_INPUT_CHARS} characters"),
             ));
         }
         if !self.weight.is_finite() || !(0.1..=2.0).contains(&self.weight) {
@@ -77,21 +201,12 @@ impl SemanticDocument {
         Ok(())
     }
 
-    /// A deterministic current-generation input for providers that still emit one vector per page.
+    /// Returns deterministic input for providers that still emit one vector per page.
     /// Multi-vector workers should embed `embedding_inputs` independently instead.
     pub fn combined_embedding_text(&self) -> String {
         let mut output = String::new();
         for input in &self.embedding_inputs {
-            let label = match input.kind {
-                EmbeddingInputKind::Title => "title",
-                EmbeddingInputKind::Heading => "heading",
-                EmbeddingInputKind::Summary => "summary",
-                EmbeddingInputKind::Sentence => "sentence",
-                EmbeddingInputKind::Entity => "entities",
-                EmbeddingInputKind::Keyword => "keywords",
-                EmbeddingInputKind::UrlSignal => "url",
-                EmbeddingInputKind::Document => "document",
-            };
+            let label = input_kind_label(input.kind);
             let line = format!("{label}: {}\n", input.text);
             if output.chars().count() + line.chars().count() > MAX_EMBEDDING_TEXT_CHARS {
                 break;
@@ -115,7 +230,11 @@ pub fn extract_semantic_document(
         ));
     }
 
-    let base_type = content_type.split(';').next().unwrap_or(content_type).trim();
+    let base_type = content_type
+        .split(';')
+        .next()
+        .unwrap_or(content_type)
+        .trim();
     let html = matches!(base_type, "text/html" | "application/xhtml+xml")
         .then(|| String::from_utf8_lossy(body).into_owned());
     let title = html
@@ -141,12 +260,7 @@ pub fn extract_semantic_document(
     for heading in &headings {
         push_input(&mut inputs, EmbeddingInputKind::Heading, heading, 1.15);
     }
-    push_input(
-        &mut inputs,
-        EmbeddingInputKind::Summary,
-        &summary,
-        1.10,
-    );
+    push_input(&mut inputs, EmbeddingInputKind::Summary, &summary, 1.10);
     for group in entities.chunks(6) {
         push_input(
             &mut inputs,
@@ -164,20 +278,10 @@ pub fn extract_semantic_document(
         );
     }
     for sentence in &sentences {
-        push_input(
-            &mut inputs,
-            EmbeddingInputKind::Sentence,
-            sentence,
-            1.00,
-        );
+        push_input(&mut inputs, EmbeddingInputKind::Sentence, sentence, 1.00);
     }
     if let Some(signal) = url_signal(canonical_url) {
-        push_input(
-            &mut inputs,
-            EmbeddingInputKind::UrlSignal,
-            &signal,
-            0.65,
-        );
+        push_input(&mut inputs, EmbeddingInputKind::UrlSignal, &signal, 0.65);
     }
     push_input(
         &mut inputs,
@@ -205,12 +309,20 @@ pub fn extract_semantic_document(
     Ok(document)
 }
 
-fn push_input(
-    inputs: &mut Vec<EmbeddingInput>,
-    kind: EmbeddingInputKind,
-    text: &str,
-    weight: f32,
-) {
+fn input_kind_label(kind: EmbeddingInputKind) -> &'static str {
+    match kind {
+        EmbeddingInputKind::Title => "title",
+        EmbeddingInputKind::Heading => "heading",
+        EmbeddingInputKind::Summary => "summary",
+        EmbeddingInputKind::Sentence => "sentence",
+        EmbeddingInputKind::Entity => "entities",
+        EmbeddingInputKind::Keyword => "keywords",
+        EmbeddingInputKind::UrlSignal => "url",
+        EmbeddingInputKind::Document => "document",
+    }
+}
+
+fn push_input(inputs: &mut Vec<EmbeddingInput>, kind: EmbeddingInputKind, text: &str, weight: f32) {
     let text = truncate_chars(&collapse_whitespace(text), MAX_INPUT_CHARS);
     if text.chars().count() < 3 {
         return;
@@ -340,7 +452,12 @@ fn complete_sentences(text: &str, limit: usize) -> Vec<String> {
 }
 
 fn build_summary(sentences: &[String], content_text: &str) -> String {
-    let summary = sentences.iter().take(3).cloned().collect::<Vec<_>>().join(" ");
+    let summary = sentences
+        .iter()
+        .take(3)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(" ");
     if summary.chars().count() >= 80 {
         truncate_chars(&summary, 900)
     } else {
@@ -392,17 +509,6 @@ fn extract_entities(text: &str, limit: usize) -> Vec<String> {
     let mut counts = BTreeMap::<String, usize>::new();
     let mut phrase = Vec::<String>::new();
 
-    fn flush(phrase: &mut Vec<String>, counts: &mut BTreeMap<String, usize>) {
-        if phrase.is_empty() {
-            return;
-        }
-        let candidate = phrase.join(" ");
-        if candidate.chars().count() >= 3 && !is_common_sentence_lead(&candidate) {
-            *counts.entry(candidate).or_default() += 1;
-        }
-        phrase.clear();
-    }
-
     for raw in text.split_whitespace() {
         let token = raw.trim_matches(|character: char| {
             !character.is_alphanumeric() && character != '-' && character != '\''
@@ -410,13 +516,13 @@ fn extract_entities(text: &str, limit: usize) -> Vec<String> {
         if is_entity_token(token) {
             phrase.push(token.to_owned());
             if phrase.len() == 5 {
-                flush(&mut phrase, &mut counts);
+                flush_entity(&mut phrase, &mut counts);
             }
         } else {
-            flush(&mut phrase, &mut counts);
+            flush_entity(&mut phrase, &mut counts);
         }
     }
-    flush(&mut phrase, &mut counts);
+    flush_entity(&mut phrase, &mut counts);
 
     let mut ranked = counts.into_iter().collect::<Vec<_>>();
     ranked.sort_by(|(left_name, left_count), (right_name, right_count)| {
@@ -429,6 +535,17 @@ fn extract_entities(text: &str, limit: usize) -> Vec<String> {
         .take(limit)
         .map(|(name, _)| name)
         .collect()
+}
+
+fn flush_entity(phrase: &mut Vec<String>, counts: &mut BTreeMap<String, usize>) {
+    if phrase.is_empty() {
+        return;
+    }
+    let candidate = phrase.join(" ");
+    if candidate.chars().count() >= 3 && !is_common_sentence_lead(&candidate) {
+        *counts.entry(candidate).or_default() += 1;
+    }
+    phrase.clear();
 }
 
 fn is_entity_token(token: &str) -> bool {
@@ -477,25 +594,7 @@ fn is_common_sentence_lead(candidate: &str) -> bool {
 }
 
 fn is_stopword(token: &str) -> bool {
-    matches!(
-        token,
-        "a" | "about" | "after" | "again" | "all" | "also" | "am" | "an" | "and"
-            | "any" | "are" | "as" | "at" | "be" | "because" | "been" | "before"
-            | "being" | "between" | "both" | "but" | "by" | "can" | "could" | "did"
-            | "do" | "does" | "doing" | "down" | "during" | "each" | "few" | "for"
-            | "from" | "further" | "had" | "has" | "have" | "having" | "he" | "her"
-            | "here" | "hers" | "herself" | "him" | "himself" | "his" | "how" | "i"
-            | "if" | "in" | "into" | "is" | "it" | "its" | "itself" | "just" | "me"
-            | "more" | "most" | "my" | "myself" | "no" | "nor" | "not" | "now" | "of"
-            | "off" | "on" | "once" | "only" | "or" | "other" | "our" | "ours"
-            | "ourselves" | "out" | "over" | "own" | "same" | "she" | "should" | "so"
-            | "some" | "such" | "than" | "that" | "the" | "their" | "theirs" | "them"
-            | "themselves" | "then" | "there" | "these" | "they" | "this" | "those"
-            | "through" | "to" | "too" | "under" | "until" | "up" | "very" | "was"
-            | "we" | "were" | "what" | "when" | "where" | "which" | "while" | "who"
-            | "whom" | "why" | "will" | "with" | "would" | "you" | "your" | "yours"
-            | "yourself" | "yourselves"
-    )
+    STOPWORDS.binary_search(&token).is_ok()
 }
 
 fn url_signal(value: &str) -> Option<String> {
@@ -504,7 +603,9 @@ fn url_signal(value: &str) -> Option<String> {
     if let Some(host) = url.host_str() {
         terms.extend(
             host.split('.')
-                .filter(|part| part.len() > 2 && !matches!(*part, "www" | "com" | "org" | "net"))
+                .filter(|part| {
+                    part.len() > 2 && !matches!(*part, "www" | "com" | "org" | "net")
+                })
                 .map(str::to_owned),
         );
     }
@@ -579,14 +680,18 @@ mod tests {
             input.kind == EmbeddingInputKind::Sentence
                 && input.text.contains("renewable energy projects")
         }));
-        assert!(document
-            .embedding_inputs
-            .iter()
-            .any(|input| input.kind == EmbeddingInputKind::Keyword));
-        assert!(document
-            .embedding_inputs
-            .iter()
-            .any(|input| input.kind == EmbeddingInputKind::Entity));
+        assert!(
+            document
+                .embedding_inputs
+                .iter()
+                .any(|input| input.kind == EmbeddingInputKind::Keyword)
+        );
+        assert!(
+            document
+                .embedding_inputs
+                .iter()
+                .any(|input| input.kind == EmbeddingInputKind::Entity)
+        );
         assert!(!document.content_text.contains("SecretNoise"));
         assert!(document.combined_embedding_text().contains("keywords:"));
     }
@@ -601,10 +706,12 @@ mod tests {
         .unwrap();
         assert!(!document.embedding_inputs.is_empty());
         assert!(document.embedding_inputs.len() <= MAX_INPUTS);
-        assert!(document
-            .embedding_inputs
-            .iter()
-            .all(|input| input.text.chars().count() <= MAX_INPUT_CHARS));
+        assert!(
+            document
+                .embedding_inputs
+                .iter()
+                .all(|input| input.text.chars().count() <= MAX_INPUT_CHARS)
+        );
     }
 
     #[test]
@@ -616,5 +723,10 @@ mod tests {
             weight: f32::NAN,
         };
         assert!(input.validate().is_err());
+    }
+
+    #[test]
+    fn stopword_table_remains_sorted_for_binary_search() {
+        assert!(STOPWORDS.windows(2).all(|pair| pair[0] < pair[1]));
     }
 }
