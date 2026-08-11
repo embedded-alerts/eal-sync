@@ -163,7 +163,13 @@ mod tests {
 
     #[test]
     fn embedding_kind_names_match_wire_values() {
-        assert_eq!(embedding_kind_name(EmbeddingInputKind::UrlSignal), "url_signal");
-        assert_eq!(embedding_kind_name(EmbeddingInputKind::Sentence), "sentence");
+        assert_eq!(
+            embedding_kind_name(EmbeddingInputKind::UrlSignal),
+            "url_signal"
+        );
+        assert_eq!(
+            embedding_kind_name(EmbeddingInputKind::Sentence),
+            "sentence"
+        );
     }
 }
