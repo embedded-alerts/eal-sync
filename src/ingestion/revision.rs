@@ -108,8 +108,8 @@ mod tests {
             source_id: "source".into(),
             canonical_url: "file:///etc/passwd".into(),
             source_revision_id: "revision".into(),
-            content_sha256:
-                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            content_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                .into(),
             content_text: "new page".into(),
             embedding_space_id: "space".into(),
         };

@@ -8,23 +8,22 @@ use url::Url;
 pub fn extract_text(content_type: &str, body: &[u8]) -> Result<String, IngestionError> {
     let base = base_content_type(content_type);
     let decoded = String::from_utf8_lossy(body);
-    let text = if base == "application/json"
-        || base == "application/feed+json"
-        || base.ends_with("+json")
-    {
-        let value: Value = serde_json::from_slice(body).map_err(|error| {
-            IngestionError::new("invalid_json", format!("could not parse JSON: {error}"))
-        })?;
-        let mut fragments = Vec::new();
-        collect_json_text(&value, 0, &mut fragments)?;
-        fragments.join(" ")
-    } else if matches!(base, "text/html" | "application/xhtml+xml") {
-        strip_markup(&remove_ignored_html_blocks(&decoded))
-    } else if base == "text/plain" {
-        decoded.into_owned()
-    } else {
-        strip_markup(&decoded)
-    };
+    let text =
+        if base == "application/json" || base == "application/feed+json" || base.ends_with("+json")
+        {
+            let value: Value = serde_json::from_slice(body).map_err(|error| {
+                IngestionError::new("invalid_json", format!("could not parse JSON: {error}"))
+            })?;
+            let mut fragments = Vec::new();
+            collect_json_text(&value, 0, &mut fragments)?;
+            fragments.join(" ")
+        } else if matches!(base, "text/html" | "application/xhtml+xml") {
+            strip_markup(&remove_ignored_html_blocks(&decoded))
+        } else if base == "text/plain" {
+            decoded.into_owned()
+        } else {
+            strip_markup(&decoded)
+        };
     Ok(collapse_whitespace(&decode_common_entities(&text)))
 }
 

@@ -31,10 +31,7 @@ pub(super) fn parse_http_url(input: &str) -> Result<Url, IngestionError> {
     Ok(url)
 }
 
-pub(super) fn prepare_target_url(
-    input: &str,
-    scope: &FetchScope,
-) -> Result<Url, IngestionError> {
+pub(super) fn prepare_target_url(input: &str, scope: &FetchScope) -> Result<Url, IngestionError> {
     let url = parse_http_url(input)?;
     if !scope.allows_url(&url) {
         return Err(IngestionError::new(

@@ -24,8 +24,7 @@ impl Default for FetchPolicy {
             connect_timeout: Duration::from_secs(5),
             max_concurrency_per_host: 2,
             require_content_type: true,
-            user_agent: "embedded-alerts/0.1 (+https://github.com/embedded-alerts/eal-sync)"
-                .into(),
+            user_agent: "embedded-alerts/0.1 (+https://github.com/embedded-alerts/eal-sync)".into(),
         }
     }
 }

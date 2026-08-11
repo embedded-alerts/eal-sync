@@ -220,9 +220,7 @@ impl HttpFetcher {
             let mut limiters = self.host_limiters.lock().await;
             limiters
                 .entry(host.to_owned())
-                .or_insert_with(|| {
-                    Arc::new(Semaphore::new(self.policy.max_concurrency_per_host))
-                })
+                .or_insert_with(|| Arc::new(Semaphore::new(self.policy.max_concurrency_per_host)))
                 .clone()
         };
         semaphore.acquire_owned().await.map_err(|_| {

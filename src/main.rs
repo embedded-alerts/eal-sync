@@ -1,13 +1,13 @@
 use axum::{
+    Json, Router,
     extract::State,
     http::StatusCode,
     routing::{get, post},
-    Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{env, net::SocketAddr};
-use syncer_rs::{merge_json, ArrayMergeStrategy, MergeOptions};
+use syncer_rs::{ArrayMergeStrategy, MergeOptions, merge_json};
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
@@ -74,8 +74,8 @@ async fn reconcile(
     State(state): State<AppState>,
     Json(request): Json<ReconcileRequest>,
 ) -> Result<Json<ReconcileResponse>, (StatusCode, Json<Value>)> {
-    let merged = reconcile_values(&request.base, &request.incoming, &state.options)
-        .map_err(|error| {
+    let merged =
+        reconcile_values(&request.base, &request.incoming, &state.options).map_err(|error| {
             (
                 StatusCode::UNPROCESSABLE_ENTITY,
                 Json(serde_json::json!({

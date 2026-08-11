@@ -32,20 +32,14 @@ pub(super) fn content_length(headers: &HeaderMap) -> Result<Option<u64>, Ingesti
         .transpose()
 }
 
-pub(super) fn content_type(
-    headers: &HeaderMap,
-    required: bool,
-) -> Result<String, IngestionError> {
+pub(super) fn content_type(headers: &HeaderMap, required: bool) -> Result<String, IngestionError> {
     match headers.get(CONTENT_TYPE) {
-        Some(value) => value
-            .to_str()
-            .map(str::to_ascii_lowercase)
-            .map_err(|_| {
-                IngestionError::new(
-                    "invalid_content_type",
-                    "Content-Type is not valid ASCII/UTF-8",
-                )
-            }),
+        Some(value) => value.to_str().map(str::to_ascii_lowercase).map_err(|_| {
+            IngestionError::new(
+                "invalid_content_type",
+                "Content-Type is not valid ASCII/UTF-8",
+            )
+        }),
         None if required => Err(IngestionError::new(
             "missing_content_type",
             "response omitted Content-Type",
