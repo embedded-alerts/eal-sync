@@ -5,7 +5,7 @@ use super::{
     },
     safety::{canonical_identity, prepare_target_url, resolve_public_addresses},
 };
-use crate::ingestion::{IngestionError, extract_text};
+use crate::ingestion::{EmbeddingInput, IngestionError, extract_semantic_document};
 use eal_semantic::sha256_hex;
 use reqwest::{
     Client, StatusCode,
@@ -31,17 +31,22 @@ pub struct FetchMetadata {
     pub last_modified: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct FetchedDocument {
     #[serde(flatten)]
     pub metadata: FetchMetadata,
     pub content_type: String,
     pub content_bytes: usize,
     pub content_sha256: String,
+    pub title: Option<String>,
     pub content_text: String,
+    pub keywords: Vec<String>,
+    pub entities: Vec<String>,
+    pub embedding_text: String,
+    pub embedding_inputs: Vec<EmbeddingInput>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum FetchOutcome {
     NotModified { metadata: FetchMetadata },
@@ -178,15 +183,10 @@ impl HttpFetcher {
             let etag = header_string(&headers, &ETAG);
             let last_modified = header_string(&headers, &LAST_MODIFIED);
             let body = read_bounded_body(response, self.policy.max_response_bytes).await?;
-            let content_text = extract_text(&content_type, &body)?;
-            if content_text.is_empty() {
-                return Err(IngestionError::new(
-                    "empty_content",
-                    "response did not contain extractable text",
-                ));
-            }
             let canonical_url = canonical_identity(&current)?;
-            let content_sha256 = sha256_hex(content_text.as_bytes());
+            let semantic = extract_semantic_document(&content_type, &body, &canonical_url)?;
+            let content_sha256 = sha256_hex(semantic.content_text.as_bytes());
+            let embedding_text = semantic.combined_embedding_text();
             let metadata = FetchMetadata {
                 requested_url: requested.as_str().into(),
                 canonical_url,
@@ -201,7 +201,12 @@ impl HttpFetcher {
                     content_type,
                     content_bytes: body.len(),
                     content_sha256,
-                    content_text,
+                    title: semantic.title,
+                    content_text: semantic.content_text,
+                    keywords: semantic.keywords,
+                    entities: semantic.entities,
+                    embedding_text,
+                    embedding_inputs: semantic.embedding_inputs,
                 },
             });
         }
