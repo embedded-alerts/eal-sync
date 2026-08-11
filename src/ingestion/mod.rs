@@ -3,13 +3,19 @@
 mod content;
 mod network;
 mod revision;
+mod semantic_views;
 
 pub use content::{DiscoveredLink, discover_links, extract_text};
 pub use network::{
     ConditionalState, FetchMetadata, FetchOutcome, FetchPolicy, FetchRequest, FetchScope,
     FetchedDocument, HttpFetcher, is_public_ip,
 };
-pub use revision::{EmbeddingWorkItem, RevisionDecision, decide_revision};
+pub use revision::{
+    EmbeddingWorkItem, RevisionDecision, decide_revision, decide_revision_with_inputs,
+};
+pub use semantic_views::{
+    EmbeddingInput, EmbeddingInputKind, SemanticDocument, extract_semantic_document,
+};
 
 use serde::Serialize;
 use std::{error::Error, fmt};
