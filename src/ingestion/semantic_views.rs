@@ -6,132 +6,15 @@ use url::Url;
 const MAX_INPUTS: usize = 96;
 const MAX_INPUT_CHARS: usize = 700;
 const MAX_EMBEDDING_TEXT_CHARS: usize = 24_000;
-const STOPWORDS: &[&str] = &[
-    "a",
-    "about",
-    "after",
-    "again",
-    "all",
-    "also",
-    "am",
-    "an",
-    "and",
-    "any",
-    "are",
-    "as",
-    "at",
-    "be",
-    "because",
-    "been",
-    "before",
-    "being",
-    "between",
-    "both",
-    "but",
-    "by",
-    "can",
-    "could",
-    "did",
-    "do",
-    "does",
-    "doing",
-    "down",
-    "during",
-    "each",
-    "few",
-    "for",
-    "from",
-    "further",
-    "had",
-    "has",
-    "have",
-    "having",
-    "he",
-    "her",
-    "here",
-    "hers",
-    "herself",
-    "him",
-    "himself",
-    "his",
-    "how",
-    "i",
-    "if",
-    "in",
-    "into",
-    "is",
-    "it",
-    "its",
-    "itself",
-    "just",
-    "me",
-    "more",
-    "most",
-    "my",
-    "myself",
-    "no",
-    "nor",
-    "not",
-    "now",
-    "of",
-    "off",
-    "on",
-    "once",
-    "only",
-    "or",
-    "other",
-    "our",
-    "ours",
-    "ourselves",
-    "out",
-    "over",
-    "own",
-    "same",
-    "she",
-    "should",
-    "so",
-    "some",
-    "such",
-    "than",
-    "that",
-    "the",
-    "their",
-    "theirs",
-    "them",
-    "themselves",
-    "then",
-    "there",
-    "these",
-    "they",
-    "this",
-    "those",
-    "through",
-    "to",
-    "too",
-    "under",
-    "until",
-    "up",
-    "very",
-    "was",
-    "we",
-    "were",
-    "what",
-    "when",
-    "where",
-    "which",
-    "while",
-    "who",
-    "whom",
-    "why",
-    "will",
-    "with",
-    "would",
-    "you",
-    "your",
-    "yours",
-    "yourself",
-    "yourselves",
-];
+const STOPWORDS: &str = concat!(
+    "a about after again all also am an and any are as at be because been before being between ",
+    "both but by can could did do does doing down during each few for from further had has have ",
+    "having he her here hers herself him himself his how i if in into is it its itself just me ",
+    "more most my myself no nor not now of off on once only or other our ours ourselves out over ",
+    "own same she should so some such than that the their theirs them themselves then there these ",
+    "they this those through to too under until up very was we were what when where which while who ",
+    "whom why will with would you your yours yourself yourselves",
+);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -594,7 +477,9 @@ fn is_common_sentence_lead(candidate: &str) -> bool {
 }
 
 fn is_stopword(token: &str) -> bool {
-    STOPWORDS.binary_search(&token).is_ok()
+    STOPWORDS
+        .split_ascii_whitespace()
+        .any(|stopword| stopword == token)
 }
 
 fn url_signal(value: &str) -> Option<String> {
@@ -603,9 +488,7 @@ fn url_signal(value: &str) -> Option<String> {
     if let Some(host) = url.host_str() {
         terms.extend(
             host.split('.')
-                .filter(|part| {
-                    part.len() > 2 && !matches!(*part, "www" | "com" | "org" | "net")
-                })
+                .filter(|part| part.len() > 2 && !matches!(*part, "www" | "com" | "org" | "net"))
                 .map(str::to_owned),
         );
     }
@@ -726,7 +609,8 @@ mod tests {
     }
 
     #[test]
-    fn stopword_table_remains_sorted_for_binary_search() {
-        assert!(STOPWORDS.windows(2).all(|pair| pair[0] < pair[1]));
+    fn stopwords_filter_common_terms() {
+        assert!(is_stopword("the"));
+        assert!(!is_stopword("renewable"));
     }
 }
