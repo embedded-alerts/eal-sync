@@ -137,10 +137,10 @@ impl CrawlQueue {
             tenant_id: row.try_get("tenant_id").context("decode tenant id")?,
             source_id: row.try_get("source_id").context("decode source id")?,
             start_url: row.try_get("start_url").context("decode start URL")?,
-            interval_seconds: row
-                .try_get("interval_seconds")
-                .context("decode interval")?,
-            attempt_count: row.try_get("attempt_count").context("decode attempt count")?,
+            interval_seconds: row.try_get("interval_seconds").context("decode interval")?,
+            attempt_count: row
+                .try_get("attempt_count")
+                .context("decode attempt count")?,
             max_attempts: row.try_get("max_attempts").context("decode max attempts")?,
             lease_token,
             attempt_id,
@@ -153,7 +153,11 @@ impl CrawlQueue {
         output: &CrawlCommandOutput,
         api_receipt: &Value,
     ) -> Result<()> {
-        let mut transaction = self.pool.begin().await.context("begin completion transaction")?;
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .context("begin completion transaction")?;
         let attempt = sqlx::query(
             r#"
             UPDATE eal_crawl_attempts
@@ -192,14 +196,21 @@ impl CrawlQueue {
         if job_update.rows_affected() != 1 {
             bail!("crawl job lease was lost before completion");
         }
-        transaction.commit().await.context("commit crawl completion")?;
+        transaction
+            .commit()
+            .await
+            .context("commit crawl completion")?;
         Ok(())
     }
 
     pub async fn fail(&self, job: &CrawlJob, error_code: &str, details: &Value) -> Result<()> {
         let error_code = sanitize_code(error_code);
         let backoff_seconds = retry_backoff_seconds(job.attempt_count.saturating_add(1));
-        let mut transaction = self.pool.begin().await.context("begin failure transaction")?;
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .context("begin failure transaction")?;
         let attempt = sqlx::query(
             r#"
             UPDATE eal_crawl_attempts
@@ -240,7 +251,10 @@ impl CrawlQueue {
         if job_update.rows_affected() != 1 {
             bail!("crawl job lease was lost before failure recording");
         }
-        transaction.commit().await.context("commit crawl failure")?;
+        transaction
+            .commit()
+            .await
+            .context("commit crawl failure")?;
         Ok(())
     }
 
@@ -315,7 +329,10 @@ mod tests {
 
     #[test]
     fn error_codes_are_sanitized() {
-        assert_eq!(sanitize_code("provider timeout\nsecret"), "providertimeoutsecret");
+        assert_eq!(
+            sanitize_code("provider timeout\nsecret"),
+            "providertimeoutsecret"
+        );
         assert_eq!(sanitize_code("***"), "crawl_failed");
     }
 }

@@ -1,7 +1,4 @@
-use eal_crawl_runtime::{
-    queue::CrawlQueue,
-    types::CrawlCommandOutput,
-};
+use eal_crawl_runtime::{queue::CrawlQueue, types::CrawlCommandOutput};
 use serde_json::json;
 use sqlx::{PgPool, Row, postgres::PgPoolOptions};
 use uuid::Uuid;
@@ -46,7 +43,11 @@ async fn one_ready_job_is_leased_once_and_completed_transactionally() {
     );
     let first = first.expect("first lease query");
     let second = second.expect("second lease query");
-    assert_ne!(first.is_some(), second.is_some(), "exactly one worker must win the lease");
+    assert_ne!(
+        first.is_some(),
+        second.is_some(),
+        "exactly one worker must win the lease"
+    );
     let leased = first.or(second).expect("one leased job");
     assert_eq!(leased.id, job_id);
     assert_eq!(leased.tenant_id, tenant_id);
@@ -69,10 +70,29 @@ async fn one_ready_job_is_leased_once_and_completed_transactionally() {
     .fetch_one(&pool)
     .await
     .expect("read completed job");
-    assert!(job_row.try_get::<Option<Uuid>, _>("lease_token").expect("lease token").is_none());
-    assert_eq!(job_row.try_get::<i32, _>("attempt_count").expect("attempt count"), 0);
-    assert!(job_row.try_get::<Option<String>, _>("last_error_code").expect("error code").is_none());
-    assert!(job_row.try_get::<bool, _>("scheduled").expect("scheduled flag"));
+    assert!(
+        job_row
+            .try_get::<Option<Uuid>, _>("lease_token")
+            .expect("lease token")
+            .is_none()
+    );
+    assert_eq!(
+        job_row
+            .try_get::<i32, _>("attempt_count")
+            .expect("attempt count"),
+        0
+    );
+    assert!(
+        job_row
+            .try_get::<Option<String>, _>("last_error_code")
+            .expect("error code")
+            .is_none()
+    );
+    assert!(
+        job_row
+            .try_get::<bool, _>("scheduled")
+            .expect("scheduled flag")
+    );
 
     let attempt_row = sqlx::query(
         "SELECT status, finished_at IS NOT NULL AS finished, api_receipt FROM eal_crawl_attempts WHERE job_id = $1",
@@ -81,9 +101,23 @@ async fn one_ready_job_is_leased_once_and_completed_transactionally() {
     .fetch_one(&pool)
     .await
     .expect("read successful attempt");
-    assert_eq!(attempt_row.try_get::<String, _>("status").expect("status"), "succeeded");
-    assert!(attempt_row.try_get::<bool, _>("finished").expect("finished flag"));
-    assert_eq!(attempt_row.try_get::<serde_json::Value, _>("api_receipt").expect("receipt"), receipt);
+    assert_eq!(
+        attempt_row
+            .try_get::<String, _>("status")
+            .expect("status"),
+        "succeeded"
+    );
+    assert!(
+        attempt_row
+            .try_get::<bool, _>("finished")
+            .expect("finished flag")
+    );
+    assert_eq!(
+        attempt_row
+            .try_get::<serde_json::Value, _>("api_receipt")
+            .expect("receipt"),
+        receipt
+    );
 
     sqlx::query("DELETE FROM eal_crawl_jobs WHERE id = $1")
         .bind(job_id)
@@ -139,10 +173,23 @@ async fn expired_lease_is_recovered_and_attempt_is_abandoned() {
     .fetch_one(&pool)
     .await
     .expect("read recovered job");
-    assert!(job_row.try_get::<Option<Uuid>, _>("lease_token").expect("lease token").is_none());
-    assert_eq!(job_row.try_get::<i32, _>("attempt_count").expect("attempt count"), 1);
+    assert!(
+        job_row
+            .try_get::<Option<Uuid>, _>("lease_token")
+            .expect("lease token")
+            .is_none()
+    );
     assert_eq!(
-        job_row.try_get::<Option<String>, _>("last_error_code").expect("error code").as_deref(),
+        job_row
+            .try_get::<i32, _>("attempt_count")
+            .expect("attempt count"),
+        1
+    );
+    assert_eq!(
+        job_row
+            .try_get::<Option<String>, _>("last_error_code")
+            .expect("error code")
+            .as_deref(),
         Some("lease_expired")
     );
 
@@ -153,12 +200,24 @@ async fn expired_lease_is_recovered_and_attempt_is_abandoned() {
     .fetch_one(&pool)
     .await
     .expect("read abandoned attempt");
-    assert_eq!(attempt_row.try_get::<String, _>("status").expect("status"), "abandoned");
     assert_eq!(
-        attempt_row.try_get::<Option<String>, _>("error_code").expect("error code").as_deref(),
+        attempt_row
+            .try_get::<String, _>("status")
+            .expect("status"),
+        "abandoned"
+    );
+    assert_eq!(
+        attempt_row
+            .try_get::<Option<String>, _>("error_code")
+            .expect("error code")
+            .as_deref(),
         Some("lease_expired")
     );
-    assert!(attempt_row.try_get::<bool, _>("finished").expect("finished flag"));
+    assert!(
+        attempt_row
+            .try_get::<bool, _>("finished")
+            .expect("finished flag")
+    );
 
     sqlx::query("DELETE FROM eal_crawl_jobs WHERE id = $1")
         .bind(job_id)

@@ -1,11 +1,7 @@
 use std::{fmt, net::IpAddr, time::Duration};
 
 use futures_util::StreamExt;
-use reqwest::{
-    Client, StatusCode, Url,
-    header::HeaderValue,
-    redirect::Policy,
-};
+use reqwest::{Client, StatusCode, Url, header::HeaderValue, redirect::Policy};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -64,9 +60,9 @@ impl IngestApiClient {
                 "API base URL must not contain credentials, query parameters, or fragments",
             ));
         }
-        let host = base_url.host_str().ok_or_else(|| {
-            IngestApiError::configuration("API base URL must contain a host")
-        })?;
+        let host = base_url
+            .host_str()
+            .ok_or_else(|| IngestApiError::configuration("API base URL must contain a host"))?;
         match base_url.scheme() {
             "https" => {}
             "http" if allow_loopback_http && is_loopback_host(host) => {}
@@ -76,9 +72,7 @@ impl IngestApiClient {
                 ));
             }
             _ => {
-                return Err(IngestApiError::configuration(
-                    "API base URL must use HTTPS",
-                ));
+                return Err(IngestApiError::configuration("API base URL must use HTTPS"));
             }
         }
         if base_url.path() != "/" && !base_url.path().is_empty() {
@@ -159,10 +153,7 @@ impl IngestApiClient {
             })?
         };
         if !status.is_success() {
-            return Err(IngestApiError::response(
-                status,
-                safe_error_message(&value),
-            ));
+            return Err(IngestApiError::response(status, safe_error_message(&value)));
         }
         Ok(value)
     }
@@ -262,28 +253,21 @@ mod tests {
 
     #[test]
     fn remote_plain_http_api_is_rejected() {
-        assert!(
-            IngestApiClient::new("http://example.com", true, 20, 2_097_152, TOKEN).is_err()
-        );
+        assert!(IngestApiClient::new("http://example.com", true, 20, 2_097_152, TOKEN).is_err());
     }
 
     #[test]
     fn loopback_plain_http_requires_explicit_opt_in() {
         assert!(
-            IngestApiClient::new("http://127.0.0.1:8080", false, 20, 2_097_152, TOKEN)
-                .is_err()
+            IngestApiClient::new("http://127.0.0.1:8080", false, 20, 2_097_152, TOKEN).is_err()
         );
-        assert!(
-            IngestApiClient::new("http://127.0.0.1:8080", true, 20, 2_097_152, TOKEN)
-                .is_ok()
-        );
+        assert!(IngestApiClient::new("http://127.0.0.1:8080", true, 20, 2_097_152, TOKEN).is_ok());
     }
 
     #[test]
     fn ingest_token_is_required_and_bounded() {
         assert!(
-            IngestApiClient::new("https://api.example.com", false, 20, 2_097_152, "short")
-                .is_err()
+            IngestApiClient::new("https://api.example.com", false, 20, 2_097_152, "short").is_err()
         );
         assert!(
             IngestApiClient::new(

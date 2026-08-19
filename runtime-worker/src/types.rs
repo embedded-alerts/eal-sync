@@ -102,7 +102,13 @@ impl CrawlCommandEnvelope {
             .get("embedding")
             .and_then(Value::as_object)
             .context("page_ingest.embedding is required")?;
-        for key in ["model", "model_version", "dimensions", "normalization", "values"] {
+        for key in [
+            "model",
+            "model_version",
+            "dimensions",
+            "normalization",
+            "values",
+        ] {
             if !embedding.contains_key(key) {
                 bail!("page_ingest.embedding.{key} is required");
             }
@@ -137,16 +143,15 @@ pub fn validate_public_https_url(value: &str) -> Result<Url> {
     if url.scheme() != "https" {
         bail!("crawl URLs must use HTTPS");
     }
-    if !url.username().is_empty()
-        || url.password().is_some()
-        || url.fragment().is_some()
-    {
+    if !url.username().is_empty() || url.password().is_some() || url.fragment().is_some() {
         bail!("crawl URLs must not contain credentials or fragments");
     }
     let host = url.host_str().context("crawl URL must contain a host")?;
     if host.eq_ignore_ascii_case("localhost")
         || host.ends_with(".localhost")
-        || host.parse::<std::net::IpAddr>().is_ok_and(is_non_public_ip)
+        || host
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(is_non_public_ip)
     {
         bail!("crawl URL host must be publicly routable");
     }

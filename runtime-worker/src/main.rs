@@ -9,6 +9,7 @@ use anyhow::{Context, Result, bail};
 use api::IngestApiClient;
 use clap::{Parser, Subcommand};
 use queue::CrawlQueue;
+use runner::run_crawl_command;
 #[cfg(test)]
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;

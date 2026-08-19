@@ -21,7 +21,10 @@ pub async fn run_crawl_command(
         ));
     }
     let request = serde_json::to_vec(&CrawlCommandRequest::from(job)).map_err(|error| {
-        CrawlRunError::new("crawl_request_encode", format!("encode crawl request: {error}"))
+        CrawlRunError::new(
+            "crawl_request_encode",
+            format!("encode crawl request: {error}"),
+        )
     })?;
     let mut child = Command::new(&config.executable)
         .stdin(Stdio::piped())
@@ -30,16 +33,25 @@ pub async fn run_crawl_command(
         .kill_on_drop(true)
         .spawn()
         .map_err(|error| {
-            CrawlRunError::new("crawl_command_spawn", format!("spawn crawl command: {error}"))
+            CrawlRunError::new(
+                "crawl_command_spawn",
+                format!("spawn crawl command: {error}"),
+            )
         })?;
     let mut stdin = child.stdin.take().ok_or_else(|| {
         CrawlRunError::new("crawl_command_stdin", "crawl command stdin was unavailable")
     })?;
     let stdout = child.stdout.take().ok_or_else(|| {
-        CrawlRunError::new("crawl_command_stdout", "crawl command stdout was unavailable")
+        CrawlRunError::new(
+            "crawl_command_stdout",
+            "crawl command stdout was unavailable",
+        )
     })?;
     let stderr = child.stderr.take().ok_or_else(|| {
-        CrawlRunError::new("crawl_command_stderr", "crawl command stderr was unavailable")
+        CrawlRunError::new(
+            "crawl_command_stderr",
+            "crawl command stderr was unavailable",
+        )
     })?;
 
     stdin.write_all(&request).await.map_err(|error| {
@@ -69,17 +81,17 @@ pub async fn run_crawl_command(
         );
         (stdout, stderr, status)
     };
-    let (stdout, stderr, status) = match timeout(Duration::from_secs(config.timeout_seconds), run).await
-    {
-        Ok(result) => result,
-        Err(_) => {
-            let _ = child.kill().await;
-            return Err(CrawlRunError::new(
-                "crawl_command_timeout",
-                "crawl command exceeded its execution deadline",
-            ));
-        }
-    };
+    let (stdout, stderr, status) =
+        match timeout(Duration::from_secs(config.timeout_seconds), run).await {
+            Ok(result) => result,
+            Err(_) => {
+                let _ = child.kill().await;
+                return Err(CrawlRunError::new(
+                    "crawl_command_timeout",
+                    "crawl command exceeded its execution deadline",
+                ));
+            }
+        };
     let stdout = stdout.map_err(|error| {
         CrawlRunError::new(
             "crawl_command_stdout",
@@ -122,12 +134,13 @@ pub async fn run_crawl_command(
         ));
     }
 
-    let envelope = serde_json::from_slice::<CrawlCommandEnvelope>(&stdout.bytes).map_err(|error| {
-        CrawlRunError::new(
-            "crawl_command_protocol",
-            format!("decode crawl command result: {error}"),
-        )
-    })?;
+    let envelope =
+        serde_json::from_slice::<CrawlCommandEnvelope>(&stdout.bytes).map_err(|error| {
+            CrawlRunError::new(
+                "crawl_command_protocol",
+                format!("decode crawl command result: {error}"),
+            )
+        })?;
     envelope.validate(job).map_err(|error| {
         CrawlRunError::new(
             "crawl_command_protocol",

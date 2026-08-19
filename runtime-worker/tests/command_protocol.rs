@@ -1,10 +1,6 @@
 #![cfg(unix)]
 
-use std::{
-    fs,
-    os::unix::fs::PermissionsExt,
-    path::PathBuf,
-};
+use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 use eal_crawl_runtime::{
     runner::run_crawl_command,
@@ -50,7 +46,9 @@ fn fixture_path() -> PathBuf {
         Uuid::new_v4()
     ));
     fs::write(&path, FIXTURE).expect("write protocol fixture");
-    let mut permissions = fs::metadata(&path).expect("fixture metadata").permissions();
+    let mut permissions = fs::metadata(&path)
+        .expect("fixture metadata")
+        .permissions();
     permissions.set_mode(0o700);
     fs::set_permissions(&path, permissions).expect("make protocol fixture executable");
     path
@@ -84,11 +82,17 @@ async fn executes_versioned_protocol_and_validates_page_ingest() {
         .await
         .expect("run fixture crawler");
     assert_eq!(
-        output.page_ingest.get("source_id").and_then(serde_json::Value::as_str),
+        output
+            .page_ingest
+            .get("source_id")
+            .and_then(serde_json::Value::as_str),
         Some(job.source_id.to_string().as_str())
     );
     assert_eq!(
-        output.diagnostic.get("fixture").and_then(serde_json::Value::as_bool),
+        output
+            .diagnostic
+            .get("fixture")
+            .and_then(serde_json::Value::as_bool),
         Some(true)
     );
     fs::remove_file(executable).expect("remove protocol fixture");
