@@ -60,7 +60,7 @@ async fn one_ready_job_is_leased_once_and_completed_transactionally() {
     );
     let leased = first.or(second).expect("one leased job");
     assert_eq!(leased.id, job_id);
-    assert_eq(leased.tenant_id, tenant_id);
+    assert_eq!(leased.tenant_id, tenant_id);
     assert_eq!(leased.source_id, source_id);
 
     let output = CrawlCommandOutput {
@@ -85,7 +85,7 @@ async fn one_ready_job_is_leased_once_and_completed_transactionally() {
             .try_get::<Option<Uuid>, _>("lease_token")
             .expect("lease token")
             .is_none()
-   );
+    );
     assert_eq!(
         job_row
             .try_get::<i32, _>("attempt_count")
@@ -97,7 +97,7 @@ async fn one_ready_job_is_leased_once_and_completed_transactionally() {
             .try_get::<Option<String>, _>("last_error_code")
             .expect("error code")
             .is_none()
-   );
+    );
     assert!(
         job_row
             .try_get::<bool, _>("scheduled")
@@ -114,18 +114,18 @@ async fn one_ready_job_is_leased_once_and_completed_transactionally() {
     assert_eq!(
         attempt_row.try_get::<String, _>("status").expect("status"),
         "succeeded"
-   );
+    );
     assert!(
         attempt_row
             .try_get::<bool, _>("finished")
             .expect("finished flag")
-   );
+    );
     assert_eq!(
         attempt_row
             .try_get::<serde_json::Value, _>("api_receipt")
             .expect("receipt"),
         receipt
-   );
+    );
 
     sqlx::query("DELETE FROM eal_crawl_jobs WHERE id = $1")
         .bind(job_id)
@@ -178,7 +178,7 @@ async fn expired_lease_is_recovered_and_attempt_is_abandoned() {
 
     let job_row = sqlx::query(
         "SELECT lease_token, attempt_count, last_error_code FROM eal_crawl_jobs WHERE id = $1",
-   )
+    )
     .bind(job_id)
     .fetch_one(&pool)
     .await
@@ -213,7 +213,7 @@ async fn expired_lease_is_recovered_and_attempt_is_abandoned() {
     assert_eq!(
         attempt_row.try_get::<String, _>("status").expect("status"),
         "abandoned"
-   );
+    );
     assert_eq!(
         attempt_row
             .try_get::<Option<String>, _>("error_code")
