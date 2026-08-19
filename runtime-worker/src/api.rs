@@ -1,14 +1,23 @@
 use std::{fmt, net::IpAddr, time::Duration};
 
 use futures_util::StreamExt;
-use reqwest::{Client, StatusCode, Url, redirect::Policy};
+use reqwest::{
+    Client, StatusCode, Url,
+    header::HeaderValue,
+    redirect::Policy,
+};
 use serde_json::Value;
 use uuid::Uuid;
+
+const INGEST_TOKEN_HEADER: &str = "x-eal-ingest-token";
+const MIN_INGEST_TOKEN_BYTES: usize = 32;
+const MAX_INGEST_TOKEN_BYTES: usize = 512;
 
 #[derive(Clone)]
 pub struct IngestApiClient {
     client: Client,
     base_url: Url,
+    ingest_token: HeaderValue,
     response_limit_bytes: usize,
 }
 
@@ -18,6 +27,7 @@ impl IngestApiClient {
         allow_loopback_http: bool,
         timeout_seconds: u64,
         response_limit_bytes: usize,
+        ingest_token: &str,
     ) -> Result<Self, IngestApiError> {
         if !(1..=120).contains(&timeout_seconds) {
             return Err(IngestApiError::configuration(
@@ -29,6 +39,19 @@ impl IngestApiClient {
                 "API response limit must be between 65536 and 16777216 bytes",
             ));
         }
+        let token_bytes = ingest_token.as_bytes();
+        if ingest_token.trim() != ingest_token
+            || !(MIN_INGEST_TOKEN_BYTES..=MAX_INGEST_TOKEN_BYTES).contains(&token_bytes.len())
+        {
+            return Err(IngestApiError::configuration(
+                "ingest token must contain 32 to 512 bytes without leading or trailing whitespace",
+            ));
+        }
+        let mut ingest_token = HeaderValue::from_str(ingest_token).map_err(|_| {
+            IngestApiError::configuration("ingest token contains invalid HTTP header bytes")
+        })?;
+        ingest_token.set_sensitive(true);
+
         let mut base_url = Url::parse(base_url.trim()).map_err(|error| {
             IngestApiError::configuration(format!("invalid API base URL: {error}"))
         })?;
@@ -75,6 +98,7 @@ impl IngestApiClient {
         Ok(Self {
             client,
             base_url,
+            ingest_token,
             response_limit_bytes,
         })
     }
@@ -93,6 +117,7 @@ impl IngestApiClient {
             .client
             .post(url)
             .header("x-eal-tenant-id", tenant_id.to_string())
+            .header(INGEST_TOKEN_HEADER, self.ingest_token.clone())
             .header(reqwest::header::ACCEPT, "application/json")
             .json(payload)
             .send()
@@ -233,14 +258,42 @@ impl std::error::Error for IngestApiError {}
 mod tests {
     use super::*;
 
+    const TOKEN: &str = "0123456789abcdef0123456789abcdef";
+
     #[test]
     fn remote_plain_http_api_is_rejected() {
-        assert!(IngestApiClient::new("http://example.com", true, 20, 2_097_152).is_err());
+        assert!(
+            IngestApiClient::new("http://example.com", true, 20, 2_097_152, TOKEN).is_err()
+        );
     }
 
     #[test]
     fn loopback_plain_http_requires_explicit_opt_in() {
-        assert!(IngestApiClient::new("http://127.0.0.1:8080", false, 20, 2_097_152).is_err());
-        assert!(IngestApiClient::new("http://127.0.0.1:8080", true, 20, 2_097_152).is_ok());
+        assert!(
+            IngestApiClient::new("http://127.0.0.1:8080", false, 20, 2_097_152, TOKEN)
+                .is_err()
+        );
+        assert!(
+            IngestApiClient::new("http://127.0.0.1:8080", true, 20, 2_097_152, TOKEN)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn ingest_token_is_required_and_bounded() {
+        assert!(
+            IngestApiClient::new("https://api.example.com", false, 20, 2_097_152, "short")
+                .is_err()
+        );
+        assert!(
+            IngestApiClient::new(
+                "https://api.example.com",
+                false,
+                20,
+                2_097_152,
+                &format!(" {TOKEN}")
+            )
+            .is_err()
+        );
     }
 }

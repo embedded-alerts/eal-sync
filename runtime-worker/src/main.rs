@@ -30,6 +30,9 @@ struct Cli {
     )]
     api_base_url: String,
 
+    #[arg(long, env = "EAL_INGEST_TOKEN", hide_env_values = true)]
+    ingest_token: String,
+
     #[arg(long, env = "EAL_ALLOW_LOOPBACK_HTTP", default_value_t = false)]
     allow_loopback_http: bool,
 
@@ -150,6 +153,7 @@ async fn main() -> Result<()> {
                 cli.allow_loopback_http,
                 cli.api_timeout_seconds,
                 cli.api_response_limit_bytes,
+                &cli.ingest_token,
             )?;
             let command = CrawlCommandConfig {
                 executable: crawl_command,
