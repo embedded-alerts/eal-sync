@@ -124,11 +124,10 @@ impl CrawlCommandEnvelope {
         if dimensions == 0 || dimensions > 65_535 || values.len() != dimensions as usize {
             bail!("page_ingest embedding dimensions do not match values");
         }
-        if values.iter().any(|value| {
-            value
-                .as_f64()
-                .is_none_or(|number| !number.is_finite())
-        }) {
+        if values
+            .iter()
+            .any(|value| value.as_f64().is_none_or(|number| !number.is_finite()))
+        {
             bail!("page_ingest embedding contains a non-finite value");
         }
         Ok(CrawlCommandOutput {
@@ -149,9 +148,7 @@ pub fn validate_public_https_url(value: &str) -> Result<Url> {
     let host = url.host_str().context("crawl URL must contain a host")?;
     if host.eq_ignore_ascii_case("localhost")
         || host.ends_with(".localhost")
-        || host
-            .parse::<std::net::IpAddr>()
-            .is_ok_and(is_non_public_ip)
+        || host.parse::<std::net::IpAddr>().is_ok_and(is_non_public_ip)
     {
         bail!("crawl URL host must be publicly routable");
     }

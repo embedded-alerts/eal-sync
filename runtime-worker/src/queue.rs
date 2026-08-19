@@ -251,10 +251,7 @@ impl CrawlQueue {
         if job_update.rows_affected() != 1 {
             bail!("crawl job lease was lost before failure recording");
         }
-        transaction
-            .commit()
-            .await
-            .context("commit crawl failure")?;
+        transaction.commit().await.context("commit crawl failure")?;
         Ok(())
     }
 

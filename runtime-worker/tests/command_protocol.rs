@@ -46,9 +46,7 @@ fn fixture_path() -> PathBuf {
         Uuid::new_v4()
     ));
     fs::write(&path, FIXTURE).expect("write protocol fixture");
-    let mut permissions = fs::metadata(&path)
-        .expect("fixture metadata")
-        .permissions();
+    let mut permissions = fs::metadata(&path).expect("fixture metadata").permissions();
     permissions.set_mode(0o700);
     fs::set_permissions(&path, permissions).expect("make protocol fixture executable");
     path

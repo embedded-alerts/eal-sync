@@ -102,9 +102,7 @@ async fn one_ready_job_is_leased_once_and_completed_transactionally() {
     .await
     .expect("read successful attempt");
     assert_eq!(
-        attempt_row
-            .try_get::<String, _>("status")
-            .expect("status"),
+        attempt_row.try_get::<String, _>("status").expect("status"),
         "succeeded"
     );
     assert!(
@@ -157,7 +155,7 @@ async fn expired_lease_is_recovered_and_attempt_is_abandoned() {
     sqlx::query(
         "UPDATE eal_crawl_jobs SET lease_expires_at = now() - interval '1 second' WHERE id = $1 AND lease_token = $2",
     )
-    .bind(job_id)
+    .bind(leased.id)
     .bind(leased.lease_token)
     .execute(&pool)
     .await
@@ -168,7 +166,7 @@ async fn expired_lease_is_recovered_and_attempt_is_abandoned() {
 
     let job_row = sqlx::query(
         "SELECT lease_token, attempt_count, last_error_code FROM eal_crawl_jobs WHERE id = $1",
-    )
+   )
     .bind(job_id)
     .fetch_one(&pool)
     .await
@@ -201,11 +199,9 @@ async fn expired_lease_is_recovered_and_attempt_is_abandoned() {
     .await
     .expect("read abandoned attempt");
     assert_eq!(
-        attempt_row
-            .try_get::<String, _>("status")
-            .expect("status"),
+        attempt_row.try_get::<String, _>("status").expect("status"),
         "abandoned"
-    );
+   );
     assert_eq!(
         attempt_row
             .try_get::<Option<String>, _>("error_code")
