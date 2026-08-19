@@ -250,6 +250,7 @@ impl HttpFetcher {
                 IngestionError::new("dns_no_public_address", "host has no public address")
             })?;
         Client::builder()
+            .no_proxy()
             .redirect(Policy::none())
             .timeout(self.policy.request_timeout)
             .connect_timeout(self.policy.connect_timeout)

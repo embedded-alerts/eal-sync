@@ -65,8 +65,11 @@ def main() -> int:
     )
     for marker in (
         "Policy::none()",
+        ".no_proxy()",
         "resolve_public_addresses",
         "is_public_ip",
+        "allowed_path_prefixes",
+        "require_default_port",
         "max_response_bytes",
         "IF_NONE_MATCH",
         "IF_MODIFIED_SINCE",
@@ -78,8 +81,13 @@ def main() -> int:
             raise SystemExit(f"ingestion safety contract is missing {marker!r}")
 
     crawl_once = (ROOT / "src/bin/crawl_once.rs").read_text(encoding="utf-8")
-    if "EAL_CRAWL_URL" not in crawl_once or "content_preview" not in crawl_once:
-        raise SystemExit("crawl_once must use explicit environment input and bounded output")
+    for marker in (
+        "EAL_CRAWL_URL",
+        "EAL_CRAWL_ALLOWED_PATH_PREFIXES",
+        "content_preview",
+    ):
+        if marker not in crawl_once:
+            raise SystemExit(f"crawl_once safety contract is missing {marker!r}")
 
     print(
         f"validated {metadata['organization']}/{metadata['repository']} "

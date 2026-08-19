@@ -49,6 +49,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     {
         scope.allow_host(host)?;
     }
+    if let Some(prefixes) = nonempty_env("EAL_CRAWL_ALLOWED_PATH_PREFIXES") {
+        scope.set_allowed_path_prefixes(
+            prefixes
+                .split(',')
+                .map(str::trim)
+                .filter(|value| !value.is_empty()),
+        )?;
+    }
 
     let request = FetchRequest {
         url,

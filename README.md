@@ -10,15 +10,20 @@ The service handles two separate concerns:
 
 It is not an unrestricted web crawler and does not expose an arbitrary-URL fetch
 route. A source is created through the authenticated `eal-api` contract, then a
-worker claims due source rows from PostgreSQL and supplies an explicit host scope to
-this crate.
+worker claims due source rows from PostgreSQL and supplies explicit host and path
+scope to this crate.
 
 ## Ingestion safety boundary
 
 `src/ingestion/` implements the network and content boundary used by workers:
 
 - only `http` and `https`, with URL user information rejected;
-- exact registered-host scope by default, with explicit redirect-host allowlists;
+- canonical DNS hosts only—wildcards, IP literals, local single-label names, and
+  non-default ports are rejected by the default scope;
+- exact registered-host and path-prefix scope by default, with explicit additions
+  required for subdomains, redirect hosts, and additional path prefixes;
+- environment proxies disabled so DNS validation and address pinning cannot be
+  bypassed through `HTTP_PROXY`, `HTTPS_PROXY`, or `ALL_PROXY`;
 - redirect handling disabled in reqwest and revalidated one hop at a time;
 - DNS resolution before every hop and rejection of private, loopback, link-local,
   carrier-grade NAT, reserved, multicast, and documentation addresses;
@@ -49,9 +54,11 @@ EAL_CRAWL_URL=https://example.com/feed.xml \
 ```
 
 Optional inputs are `EAL_CRAWL_INCLUDE_SUBDOMAINS`,
-`EAL_CRAWL_ALLOWED_HOSTS`, `EAL_CRAWL_ETAG`, and
-`EAL_CRAWL_LAST_MODIFIED`. Output contains metadata, the content hash, and at most a
-500-character preview—not the full fetched document.
+`EAL_CRAWL_ALLOWED_HOSTS`, `EAL_CRAWL_ALLOWED_PATH_PREFIXES`,
+`EAL_CRAWL_ETAG`, and `EAL_CRAWL_LAST_MODIFIED`. Path prefixes are
+comma-separated canonical absolute paths. When they are omitted, the fetch is
+restricted to the path represented by `EAL_CRAWL_URL`. Output contains metadata,
+the content hash, and at most a 500-character preview—not the full fetched document.
 
 ## Service endpoints
 
@@ -76,5 +83,6 @@ cargo test --all-targets --all-features
 ```
 
 Production crawling and external notifications stay disabled until the migration,
-restart, cross-tenant isolation, DNS/redirect, unchanged-content, duplicate-match,
-cooldown, and delivery-idempotency canaries pass in `embedded-alerts-test`.
+restart, cross-tenant isolation, DNS/redirect, path-scope, proxy-bypass,
+unchanged-content, duplicate-match, cooldown, and delivery-idempotency canaries pass
+in `embedded-alerts-test`.
