@@ -46,8 +46,6 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Rust 1.85
-        run: |
-          rustup toolchain install 1.85.0 --profile minimal --component rustfmt,clippy
-          rustup default 1.85.0
+        run: rustup toolchain install 1.85.0 --profile minimal --component rustfmt,clippy
       - name: Run PostgreSQL lease and recovery tests
-        run: cargo test --test postgres_queue -- --nocapture
+        run: cargo +1.85.0 test --test postgres_queue -- --nocapture

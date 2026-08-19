@@ -9,7 +9,7 @@ use anyhow::{Context, Result, bail};
 use api::IngestApiClient;
 use clap::{Parser, Subcommand};
 use queue::CrawlQueue;
-use runner::run_crawl_command;
+#[cfg(test)]
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use tokio::signal;
@@ -236,6 +236,7 @@ async fn process_next(
         job_id = %job.id,
         tenant_id = %job.tenant_id,
         source_id = %job.source_id,
+        interval_seconds = job.interval_seconds,
         attempt = job.attempt_count + 1,
         max_attempts = job.max_attempts,
         "leased crawl job"

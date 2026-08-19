@@ -7,20 +7,26 @@ runner = (ROOT / "src/runner.rs").read_text()
 api = (ROOT / "src/api.rs").read_text()
 main = (ROOT / "src/main.rs").read_text()
 migration = (ROOT / "migrations/001_runtime.sql").read_text()
+toolchain = (ROOT / "rust-toolchain.toml").read_text()
 
 required = {
     "transactional lease": "FOR UPDATE SKIP LOCKED",
     "lease token": "lease_token",
     "attempt receipt": "eal_crawl_attempts",
     "expired lease recovery": "lease_expired",
+    "attempt-first reaping": "FROM abandoned",
     "bounded retry": "retry_backoff_seconds",
+    "serialized migration": "pg_advisory_xact_lock",
     "no shell process": "Command::new(&config.executable)",
     "redirect blocking": "Policy::none()",
     "proxy bypass": ".no_proxy()",
     "tenant API boundary": "x-eal-tenant-id",
+    "worker authentication": "x-eal-ingest-token",
+    "sensitive worker credential": "set_sensitive(true)",
     "canonical page route": "v1/sources/{source_id}/pages",
+    "pinned local toolchain": 'channel = "1.85.0"',
 }
-text = "\n".join([queue, runner, api, main, migration])
+text = "\n".join([queue, runner, api, main, migration, toolchain])
 for name, needle in required.items():
     if needle not in text:
         raise SystemExit(f"missing {name}: {needle}")

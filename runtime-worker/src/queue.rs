@@ -248,26 +248,33 @@ impl CrawlQueue {
         let result = sqlx::query(
             r#"
             WITH expired AS (
-                UPDATE eal_crawl_jobs
-                SET lease_token = NULL,
-                    lease_owner = NULL,
-                    lease_expires_at = NULL,
-                    attempt_count = attempt_count + 1,
-                    next_run_at = now() + interval '60 seconds',
-                    last_error_code = 'lease_expired',
-                    updated_at = now()
+                SELECT id, lease_token
+                FROM eal_crawl_jobs
                 WHERE lease_token IS NOT NULL AND lease_expires_at < now()
-                RETURNING id, lease_token
+                FOR UPDATE
+            ), abandoned AS (
+                UPDATE eal_crawl_attempts AS attempt
+                SET status = 'abandoned',
+                    finished_at = now(),
+                    error_code = 'lease_expired',
+                    details = jsonb_build_object('reason', 'worker lease expired')
+                FROM expired
+                WHERE attempt.job_id = expired.id
+                  AND attempt.lease_token = expired.lease_token
+                  AND attempt.status = 'leased'
+                RETURNING expired.id AS job_id, expired.lease_token AS lease_token
             )
-            UPDATE eal_crawl_attempts AS attempt
-            SET status = 'abandoned',
-                finished_at = now(),
-                error_code = 'lease_expired',
-                details = jsonb_build_object('reason', 'worker lease expired')
-            FROM expired
-            WHERE attempt.job_id = expired.id
-              AND attempt.lease_token = expired.lease_token
-              AND attempt.status = 'leased'
+            UPDATE eal_crawl_jobs AS job
+            SET lease_token = NULL,
+                lease_owner = NULL,
+                lease_expires_at = NULL,
+                attempt_count = attempt_count + 1,
+                next_run_at = now() + interval '60 seconds',
+                last_error_code = 'lease_expired',
+                updated_at = now()
+            FROM abandoned
+            WHERE job.id = abandoned.job_id
+              AND job.lease_token = abandoned.lease_token
             "#,
         )
         .execute(&self.pool)

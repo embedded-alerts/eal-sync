@@ -1,3 +1,8 @@
+-- Serialize concurrent startup/test migration calls for this schema. sqlx::raw_sql
+-- sends this batch as one PostgreSQL simple-query transaction, so the xact lock is
+-- held through all catalog changes and released automatically on success or error.
+SELECT pg_advisory_xact_lock(3615202608190001);
+
 CREATE TABLE IF NOT EXISTS eal_crawl_jobs (
     id uuid PRIMARY KEY,
     tenant_id uuid NOT NULL,
