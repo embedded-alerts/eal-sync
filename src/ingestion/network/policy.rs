@@ -106,10 +106,7 @@ impl FetchScope {
         Ok(())
     }
 
-    pub fn allow_path_prefix(
-        &mut self,
-        prefix: impl AsRef<str>,
-    ) -> Result<(), IngestionError> {
+    pub fn allow_path_prefix(&mut self, prefix: impl AsRef<str>) -> Result<(), IngestionError> {
         self.allowed_path_prefixes
             .insert(normalize_path_prefix(prefix.as_ref())?);
         Ok(())
