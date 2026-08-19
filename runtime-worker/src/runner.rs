@@ -72,6 +72,7 @@ pub async fn run_crawl_command(
             format!("close crawl command stdin: {error}"),
         )
     })?;
+    drop(stdin);
 
     let run = async {
         let (stdout, stderr, status) = tokio::join!(
