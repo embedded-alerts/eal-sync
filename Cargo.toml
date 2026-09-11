@@ -2,8 +2,9 @@
 name = "eal-sync"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.88"
 license = "MIT"
-description = "opto-sync/syncer.rs JSON reconciliation gateway for Embedded Alerts."
+description = "Bounded source ingestion and opto-sync reconciliation for Embedded Alerts."
 repository = "https://github.com/embedded-alerts/eal-sync"
 publish = false
 
@@ -13,13 +14,17 @@ strategy = "offline-first"
 
 [dependencies]
 axum = { version = "0.8", features = ["json"] }
+eal-semantic = { git = "https://github.com/embedded-alerts/eal-libs", rev = "2630193c2311b673f1d7bb2a46ad00fe9634793c", package = "eal-semantic" }
+futures-util = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["brotli", "deflate", "gzip", "http2", "rustls-tls", "stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 syncer-rs = { git = "https://github.com/opto-sync/syncer.rs", rev = "132a97c77867128656070be85d3046b0cc065cbf" }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
 tower-http = { version = "0.7", features = ["trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2.5"
 
 [profile.release]
 lto = "thin"

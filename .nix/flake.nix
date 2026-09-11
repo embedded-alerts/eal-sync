@@ -22,6 +22,7 @@
         devShells.default = pkgs.mkShell {
           name = "eal-sync";
           packages = with pkgs; [
+            python3
             # Qualified deliberately: `with pkgs;` does not shadow the outputs
             # function's arguments, so a bare `ores-sops` would resolve to the
             # flake INPUT rather than the package.
