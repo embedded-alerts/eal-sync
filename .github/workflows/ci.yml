@@ -15,7 +15,23 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Bind tested revision to the event head and base
+        env:
+          EXPECTED_REVISION: ${{ github.sha }}
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_REVISION"
+          if [ -n "$EXPECTED_HEAD" ]; then
+            mapfile -t parents < <(git cat-file -p HEAD | sed -n '/^$/q;s/^parent //p')
+            test "${#parents[@]}" -eq 2
+            test "${parents[0]}" = "$EXPECTED_BASE"
+            test "${parents[1]}" = "$EXPECTED_HEAD"
+          fi
+      - name: Test repository guard regressions
+        run: python3 -B -m unittest discover -s scripts -p test_verify_repo.py -v
       - run: python3 scripts/verify_repo.py
       - name: Install pinned Rust toolchain
         run: |
