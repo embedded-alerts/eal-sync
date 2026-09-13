@@ -16,7 +16,7 @@ strategy = "offline-first"
 axum = { version = "0.8", features = ["json"] }
 eal-semantic = { git = "https://github.com/embedded-alerts/eal-libs", rev = "2630193c2311b673f1d7bb2a46ad00fe9634793c", package = "eal-semantic" }
 futures-util = "0.3"
-reqwest = { version = "0.12", default-features = false, features = ["brotli", "deflate", "gzip", "http2", "rustls-tls", "stream"] }
+reqwest = { version = "0.13", default-features = false, features = ["brotli", "deflate", "gzip", "http2", "rustls-tls", "stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 syncer-rs = { git = "https://github.com/opto-sync/syncer.rs", rev = "132a97c77867128656070be85d3046b0cc065cbf" }
