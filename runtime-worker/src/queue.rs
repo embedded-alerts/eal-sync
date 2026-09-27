@@ -5,7 +5,8 @@ use uuid::Uuid;
 
 use crate::types::{CrawlCommandOutput, CrawlJob, validate_public_https_url};
 
-const MIGRATION: &str = include_str!("../migrations/001_runtime.sql");
+const BASE_MIGRATION: &str = include_str!("../migrations/001_runtime.sql");
+const CONTENT_DEDUPE_MIGRATION: &str = include_str!("../migrations/002_content_dedupe.sql");
 
 #[derive(Clone)]
 pub struct CrawlQueue {
@@ -18,10 +19,19 @@ impl CrawlQueue {
     }
 
     pub async fn migrate(&self) -> Result<()> {
-        sqlx::raw_sql(MIGRATION)
-            .execute(&self.pool)
+        let mut transaction = self.pool.begin().await.context("begin crawl runtime migration")?;
+        sqlx::raw_sql(BASE_MIGRATION)
+            .execute(&mut *transaction)
             .await
-            .context("apply crawl runtime migration")?;
+            .context("apply base crawl runtime migration")?;
+        sqlx::raw_sql(CONTENT_DEDUPE_MIGRATION)
+            .execute(&mut *transaction)
+            .await
+            .context("apply content-dedupe crawl runtime migration")?;
+        transaction
+            .commit()
+            .await
+            .context("commit crawl runtime migrations")?;
         Ok(())
     }
 
@@ -103,7 +113,8 @@ impl CrawlQueue {
             FROM candidate
             WHERE job.id = candidate.id
             RETURNING job.id, job.tenant_id, job.source_id, job.start_url,
-                      job.interval_seconds, job.attempt_count, job.max_attempts
+                      job.interval_seconds, job.attempt_count, job.max_attempts,
+                      job.last_content_sha256
             "#,
         )
         .bind(lease_token)
@@ -142,6 +153,9 @@ impl CrawlQueue {
                 .try_get("attempt_count")
                 .context("decode attempt count")?,
             max_attempts: row.try_get("max_attempts").context("decode max attempts")?,
+            last_content_sha256: row
+                .try_get("last_content_sha256")
+                .context("decode last content hash")?,
             lease_token,
             attempt_id,
         }))
@@ -152,7 +166,15 @@ impl CrawlQueue {
         job: &CrawlJob,
         output: &CrawlCommandOutput,
         api_receipt: &Value,
+        content_sha256: &str,
     ) -> Result<()> {
+        if content_sha256.len() != 64
+            || !content_sha256
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        {
+            bail!("completion content SHA-256 must be 64 lowercase hexadecimal characters");
+        }
         let mut transaction = self
             .pool
             .begin()
@@ -183,6 +205,7 @@ impl CrawlQueue {
                 lease_owner = NULL,
                 lease_expires_at = NULL,
                 attempt_count = 0,
+                last_content_sha256 = $3,
                 last_error_code = NULL,
                 updated_at = now()
             WHERE id = $1 AND lease_token = $2
@@ -190,6 +213,7 @@ impl CrawlQueue {
         )
         .bind(job.id)
         .bind(job.lease_token)
+        .bind(content_sha256)
         .execute(&mut *transaction)
         .await
         .context("release successful crawl job")?;
