@@ -247,9 +247,9 @@ mod tests {
 
         for invalid_value in [
             "x".repeat(MAX_IDENTITY_FIELD_BYTES + 1),
-            "bad\\nname".to_owned(),
-            "bad\\rname".to_owned(),
-            "bad\\u{0}name".to_owned(),
+            "bad\nname".to_owned(),
+            "bad\rname".to_owned(),
+            "bad\u{0}name".to_owned(),
         ] {
             let mut item = valid_item();
             item.tenant_id = invalid_value.clone();
@@ -274,7 +274,7 @@ mod tests {
             "invalid_embedding_work_item"
         );
         let mut item = valid_item();
-        item.embedding_space_id = "bad\\nspace".into();
+        item.embedding_space_id = "bad\nspace".into();
         assert_eq!(
             item.validate().unwrap_err().code,
             "invalid_embedding_work_item"
