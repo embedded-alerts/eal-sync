@@ -7,6 +7,10 @@ const MAX_EMBEDDING_TEXT_CHARS: usize = 24_000;
 // Matches the maximum permitted fetch response size; also caps externally
 // supplied and replayed work items before downstream model processing.
 const MAX_CONTENT_TEXT_BYTES: usize = 32 * 1024 * 1024;
+// Prevent unbounded metadata fields and unsafe control bytes in durable work
+// items. These limits are intentionally larger than normal UUID/space keys.
+const MAX_IDENTITY_FIELD_BYTES: usize = 4 * 1024;
+const MAX_CANONICAL_URL_BYTES: usize = 16 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "decision", rename_all = "snake_case")]
@@ -102,6 +106,18 @@ impl EmbeddingWorkItem {
                 return Err(IngestionError::new(
                     "invalid_embedding_work_item",
                     format!("{field} must not be empty"),
+                ));
+            }
+            if field != "content_text"
+                && (value.len() > if field == "canonical_url" {
+                    MAX_CANONICAL_URL_BYTES
+                } else {
+                    MAX_IDENTITY_FIELD_BYTES
+                } || value.chars().any(char::is_control))
+            {
+                return Err(IngestionError::new(
+                    "invalid_embedding_work_item",
+                    format!("{field} exceeds its metadata limits or contains control characters"),
                 ));
             }
         }
@@ -207,6 +223,49 @@ mod tests {
         let error = item.validate().unwrap_err();
         assert_eq!(error.code, "invalid_embedding_work_item");
         assert!(!error.message.contains("x".repeat(128).as_str()));
+    }
+
+    #[test]
+    fn metadata_fields_are_bounded_and_reject_control_characters() {
+        fn valid_item() -> EmbeddingWorkItem {
+            EmbeddingWorkItem {
+                tenant_id: "tenant".into(),
+                source_id: "source".into(),
+                canonical_url: "https://example.com/news".into(),
+                source_revision_id: "revision".into(),
+                content_sha256: "a".repeat(64),
+                content_text: "a bounded document".into(),
+                embedding_text: "a bounded summary".into(),
+                embedding_inputs: vec![input()],
+                embedding_space_id: "provider:model:1536:provider".into(),
+            }
+        }
+        let mut permitted = valid_item();
+        permitted.tenant_id = "t".repeat(MAX_IDENTITY_FIELD_BYTES);
+        assert!(permitted.validate().is_ok());
+
+        for invalid_value in [
+            "x".repeat(MAX_IDENTITY_FIELD_BYTES + 1),
+            "bad\\nname".to_owned(),
+            "bad\\rname".to_owned(),
+            "bad\\u{0}name".to_owned(),
+        ] {
+            let mut item = valid_item();
+            item.tenant_id = invalid_value.clone();
+            let err = item.validate().unwrap_err();
+            assert_eq!(err.code, "invalid_embedding_work_item");
+            assert!(!err.message.contains(&invalid_value));
+
+            let mut item = valid_item();
+            item.source_revision_id = invalid_value;
+            assert_eq!(item.validate().unwrap_err().code, "invalid_embedding_work_item");
+        }
+        let mut item = valid_item();
+        item.canonical_url = format!("https://example.com/{}", "x".repeat(MAX_CANONICAL_URL_BYTES));
+        assert_eq!(item.validate().unwrap_err().code, "invalid_embedding_work_item");
+        let mut item = valid_item();
+        item.embedding_space_id = "bad\\nspace".into();
+        assert_eq!(item.validate().unwrap_err().code, "invalid_embedding_work_item");
     }
 
     #[test]
