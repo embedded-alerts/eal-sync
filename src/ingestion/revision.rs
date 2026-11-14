@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 
 const MAX_EMBEDDING_INPUTS: usize = 96;
 const MAX_EMBEDDING_TEXT_CHARS: usize = 24_000;
+// Matches the maximum permitted fetch response size; also caps externally
+// supplied and replayed work items before downstream model processing.
+const MAX_CONTENT_TEXT_BYTES: usize = 32 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "decision", rename_all = "snake_case")]
@@ -102,6 +105,12 @@ impl EmbeddingWorkItem {
                 ));
             }
         }
+        if self.content_text.len() > MAX_CONTENT_TEXT_BYTES {
+            return Err(IngestionError::new(
+                "invalid_embedding_work_item",
+                "content_text exceeds the maximum permitted fetch response size",
+            ));
+        }
         if self.embedding_text.chars().count() > MAX_EMBEDDING_TEXT_CHARS {
             return Err(IngestionError::new(
                 "invalid_embedding_work_item",
@@ -180,6 +189,24 @@ mod tests {
             embedding_space_id: "space".into(),
         };
         assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn embedding_work_rejects_content_larger_than_fetch_policy_ceiling() {
+        let item = EmbeddingWorkItem {
+            tenant_id: "tenant".into(),
+            source_id: "source".into(),
+            canonical_url: "https://example.com/news".into(),
+            source_revision_id: "revision".into(),
+            content_sha256: "a".repeat(64),
+            content_text: "x".repeat(MAX_CONTENT_TEXT_BYTES + 1),
+            embedding_text: String::new(),
+            embedding_inputs: vec![input()],
+            embedding_space_id: "space".into(),
+        };
+        let error = item.validate().unwrap_err();
+        assert_eq!(error.code, "invalid_embedding_work_item");
+        assert!(!error.message.contains("x".repeat(128).as_str()));
     }
 
     #[test]
