@@ -108,12 +108,13 @@ impl EmbeddingWorkItem {
                     format!("{field} must not be empty"),
                 ));
             }
+            let metadata_limit = if field == "canonical_url" {
+                MAX_CANONICAL_URL_BYTES
+            } else {
+                MAX_IDENTITY_FIELD_BYTES
+            };
             if field != "content_text"
-                && (value.len() > if field == "canonical_url" {
-                    MAX_CANONICAL_URL_BYTES
-                } else {
-                    MAX_IDENTITY_FIELD_BYTES
-                } || value.chars().any(char::is_control))
+                && (value.len() > metadata_limit || value.chars().any(char::is_control))
             {
                 return Err(IngestionError::new(
                     "invalid_embedding_work_item",
@@ -258,14 +259,26 @@ mod tests {
 
             let mut item = valid_item();
             item.source_revision_id = invalid_value;
-            assert_eq!(item.validate().unwrap_err().code, "invalid_embedding_work_item");
+            assert_eq!(
+                item.validate().unwrap_err().code,
+                "invalid_embedding_work_item"
+            );
         }
         let mut item = valid_item();
-        item.canonical_url = format!("https://example.com/{}", "x".repeat(MAX_CANONICAL_URL_BYTES));
-        assert_eq!(item.validate().unwrap_err().code, "invalid_embedding_work_item");
+        item.canonical_url = format!(
+            "https://example.com/{}",
+            "x".repeat(MAX_CANONICAL_URL_BYTES)
+        );
+        assert_eq!(
+            item.validate().unwrap_err().code,
+            "invalid_embedding_work_item"
+        );
         let mut item = valid_item();
         item.embedding_space_id = "bad\\nspace".into();
-        assert_eq!(item.validate().unwrap_err().code, "invalid_embedding_work_item");
+        assert_eq!(
+            item.validate().unwrap_err().code,
+            "invalid_embedding_work_item"
+        );
     }
 
     #[test]
